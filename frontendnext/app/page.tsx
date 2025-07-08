@@ -6,7 +6,10 @@ export default function Home() {
     <main>
         <h1>Welcome to Edit Generator!</h1>
         <Link href="/about">About</Link>
+        <p>   </p>
         <Link href="/pay">Pay with stripe</Link>
+        <p>   </p>
+        <Link href="/upload-files">Upload files</Link>
     </main>
   )
 }
