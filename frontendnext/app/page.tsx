@@ -10,6 +10,8 @@ export default function Home() {
         <Link href="/pay">Pay with stripe</Link>
         <p>   </p>
         <Link href="/upload-files">Upload files</Link>
+        <p>   </p>
+        <Link href="/create">Write comment</Link>
     </main>
   )
 }
