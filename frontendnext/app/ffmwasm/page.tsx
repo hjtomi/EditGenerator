@@ -84,3 +84,9 @@ export default function Home() {
     </button>
   );
 } */
+
+export default function Page() {
+  return (
+    <p>Testing page</p>
+  );
+}
