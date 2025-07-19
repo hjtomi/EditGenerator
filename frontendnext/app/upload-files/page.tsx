@@ -26,7 +26,7 @@ export default function Page() {
   const [videoGenerationProgress, setVideoGenerationProgress] = React.useState<string>('');
 
   const [imagesUploaded, setImagesUploaded] = React.useState(false);
-  const [audiosUploaded, setAudiosUploaded] = React.useState(false);
+  //const [audiosUploaded, setAudiosUploaded] = React.useState(false);
 
   // --- Load FFmpeg on component mount ---
   React.useEffect(() => {
@@ -151,6 +151,7 @@ export default function Page() {
     setFiles([]);
   };
 
+  /*
   const handleUpload = async () => {
     if (files.length === 0) {
       setError('Please select at least one file to upload.');
@@ -197,7 +198,7 @@ export default function Page() {
     // Do not clear files here, as they are needed for video generation
     // setFiles([]);
     // setUploadProgressMap(new Map());
-  };
+  };*/
 
   // --- Handle Video Generation ---
   const handleGenerateVideo = async () => {
@@ -339,7 +340,7 @@ export default function Page() {
 
         // Create a Blob and download link
         // Use new Uint8Array(data.buffer) to ensure it's a standard ArrayBufferView
-        const blob = new Blob([new Uint8Array(data as any)], { type: 'video/mp4' });
+        const blob = new Blob([new Uint8Array(data)], { type: 'video/mp4' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
