@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { useEdgeStore } from '../../lib/edgestore';
+//import { useEdgeStore } from '../../lib/edgestore';
 import { FFmpeg } from '@ffmpeg/ffmpeg'; // Import FFmpeg
 import { fetchFile, toBlobURL } from '@ffmpeg/util'; // Import fetchFile
 
 export default function Page() {
   const [files, setFiles] = React.useState<File[]>([]);
   const [uploadProgressMap, setUploadProgressMap] = React.useState<Map<string, number>>(new Map());
-  const [isUploading, setIsUploading] = React.useState(false);
+  const [isUploading] = React.useState(false);
   const [uploadComplete, setUploadComplete] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -17,7 +17,7 @@ export default function Page() {
   // Ref to track nested drag events
   const dragCounter = React.useRef(0);
 
-  const { edgestore } = useEdgeStore();
+  //const { edgestore } = useEdgeStore();
 
   // FFmpeg related states and ref
   const ffmpegRef = React.useRef<FFmpeg | null>(null);
@@ -212,7 +212,6 @@ export default function Page() {
     }
 
     setImagesUploaded(false);
-    setAudiosUploaded(false);
     setIsGeneratingVideo(true);
     setError(null);
     setVideoGenerationProgress('');
