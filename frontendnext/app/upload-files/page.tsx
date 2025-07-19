@@ -25,6 +25,9 @@ export default function Page() {
   const [isGeneratingVideo, setIsGeneratingVideo] = React.useState(false);
   const [videoGenerationProgress, setVideoGenerationProgress] = React.useState<string>('');
 
+  const [imagesUploaded, setImagesUploaded] = React.useState(false);
+  const [audiosUploaded, setAudiosUploaded] = React.useState(false);
+
   // --- Load FFmpeg on component mount ---
   React.useEffect(() => {
     const loadFFmpeg = async () => {
@@ -116,11 +119,20 @@ export default function Page() {
   // --- Internal file selection and upload logic ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).filter(file => file.type.startsWith('image/')); // Only accept images
-      setFiles(newFiles);
-      setError(null);
-      setUploadComplete(false);
-      setUploadProgressMap(new Map());
+      if (imagesUploaded) {
+        const newFiles = Array.from(e.target.files).filter(file => file.type.startsWith('audio/')); // Only accept auadio files
+        setFiles(newFiles);
+        setError(null);
+        setUploadComplete(false);
+        setUploadProgressMap(new Map());
+      } else {
+        const newFiles = Array.from(e.target.files).filter(file => file.type.startsWith('image/')); // Only accept images
+        setFiles(newFiles);
+        setError(null);
+        setUploadComplete(false);
+        setUploadProgressMap(new Map());
+      }
+      
     }
   };
 
@@ -133,6 +145,10 @@ export default function Page() {
     });
     setError(null);
     setUploadComplete(false);
+  };
+
+  const removeAllFiles = () => {
+    setFiles([]);
   };
 
   const handleUpload = async () => {
@@ -194,6 +210,8 @@ export default function Page() {
       return;
     }
 
+    setImagesUploaded(false);
+    setAudiosUploaded(false);
     setIsGeneratingVideo(true);
     setError(null);
     setVideoGenerationProgress('');
@@ -223,11 +241,16 @@ export default function Page() {
           console.log(`Converted ${originalFileName} to ${convertedFileName}`);
 
           // Optional: Delete the original file from VFS to free up memory
-          // await ffmpeg.deleteFile(originalFileName);
+          //await ffmpeg.deleteFile(originalFileName);
+          //console.log(`Deleted original ${originalFileName} from FFmpeg FS`);
       }
 
-      setVideoGenerationProgress(`All images converted to ${targetExtension.toUpperCase()}. Generating video...`);
+      removeAllFiles();
 
+      setVideoGenerationProgress(`All images converted to ${targetExtension.toUpperCase()}.`);
+      setImagesUploaded(true);
+
+      /*
       const outputFileName = 'output.mp4';
       await ffmpeg.exec([
         '-framerate', '1', // Frames per second for input images
@@ -254,7 +277,97 @@ export default function Page() {
       a.click();
 
       console.log('Video generated and downloaded successfully!');
-      setVideoGenerationProgress('Video generated and downloaded!');
+      setVideoGenerationProgress('Video generated and downloaded!');*/
+    } catch (err) {
+      console.error('Error generating video:', err);
+      setError(`Failed to generate video: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsGeneratingVideo(false);
+      // Clean up files from FFmpeg's virtual file system if needed
+      // For simplicity, we're not explicitly clearing FS here, but in a large app, you might want to.
+    }
+  };
+
+  const handlePutAudio = async () => {
+    console.log('Handling audio...');
+
+    try {
+      const ffmpeg = ffmpegRef.current;
+      const targetExtension = 'jpeg';
+
+      if (files.length > 1) {
+        /* Concat the audio */
+      } else {
+        const audioFile = files[0];
+
+        await ffmpeg!.writeFile(audioFile.name, await fetchFile(audioFile));
+        console.log(ffmpeg!.listDir("/"));
+
+        /* Create the video then add the music to the video */
+        const videoFileName = 'video.mp4';
+        await ffmpeg!.exec([
+          '-framerate', '1', // Frames per second for input images
+          '-i', `converted_image_%03d.${targetExtension}`, // Input pattern, assuming consistent extension
+          '-c:v', 'libx264',
+          '-r', '30', // Output video framerate
+          '-pix_fmt', 'yuv420p',
+          '-vf', 'scale=w=1920:h=1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black', // Ensure even dimensions
+          videoFileName,
+        ]);
+
+        console.log("created vid");
+
+        console.log(files[0].name);
+
+        const outputFileName = 'output.mp4';
+        await ffmpeg!.exec([
+          '-i', videoFileName,
+          '-i', files[0].name,
+          '-map', '0:v',
+          '-map', '1:a',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-shortest', outputFileName
+        ]);
+
+        console.log("created vid with audio");
+
+        // Read the output file from FFmpeg's virtual file system
+        // Explicitly assert 'data' as Uint8Array to resolve TypeScript error
+        const data = await ffmpeg!.readFile(outputFileName) as Uint8Array;
+
+        // Create a Blob and download link
+        // Use new Uint8Array(data.buffer) to ensure it's a standard ArrayBufferView
+        const blob = new Blob([new Uint8Array(data as any)], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = outputFileName;
+        document.body.appendChild(a);
+        a.click();
+
+        console.log('Video with audio generated and downloaded successfully!');
+      }
+
+      /*
+
+      // Read the output file from FFmpeg's virtual file system
+      // Explicitly assert 'data' as Uint8Array to resolve TypeScript error
+      const data = await ffmpeg.readFile(outputFileName) as Uint8Array;
+
+      // Create a Blob and download link
+      // Use new Uint8Array(data.buffer) to ensure it's a standard ArrayBufferView
+      const blob = new Blob([new Uint8Array(data as any)], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = outputFileName;
+      document.body.appendChild(a);
+      a.click();
+
+      console.log('Video generated and downloaded successfully!');
+      setVideoGenerationProgress('Video generated and downloaded!');*/
     } catch (err) {
       console.error('Error generating video:', err);
       setError(`Failed to generate video: ${err instanceof Error ? err.message : String(err)}`);
@@ -289,28 +402,39 @@ export default function Page() {
       </div>
 
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md z-10 relative"> {/* Ensure content is above overlay */}
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Upload Your Images</h2>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">{imagesUploaded ? "Select one or more audio files" : "Select your images"}</h2>
 
         {/* Regular File Input Area (still needed for click-to-select) */}
         <div
           className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200 ease-in-out"
           onClick={() => document.getElementById('file-input')?.click()}
-        >
-          <input
-            id="file-input"
-            type="file"
-            multiple
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+        >{ imagesUploaded ? 
+        <input
+          id="file-input"
+          type="file"
+          multiple
+          accept="audio/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        :
+        <input
+          id="file-input"
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        }
+          
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           <p className="mt-2 text-sm text-gray-600">
-            <span className="font-medium text-blue-600">Click to select</span> or drag and drop images
+            <span className="font-medium text-blue-600">Click to select</span> or drag and drop
           </p>
-          <p className="text-xs text-gray-500">Supports multiple images</p>
+          <p className="text-xs text-gray-500">Supports multiple formats</p>
         </div>
 
         {/* Selected Files Display */}
@@ -378,7 +502,7 @@ export default function Page() {
         )}
 
 
-        {/* Upload Button */}
+        {/* Upload Button
         <button
           onClick={handleUpload}
           disabled={files.length === 0 || isUploading || isGeneratingVideo}
@@ -387,17 +511,17 @@ export default function Page() {
           }`}
         >
           {isUploading ? 'Uploading...' : uploadComplete ? 'Uploaded!' : 'Upload All Files'}
-        </button>
+        </button> */}
 
         {/* Generate Video Button */}
         <button
-          onClick={handleGenerateVideo}
+          onClick={imagesUploaded ? handlePutAudio : handleGenerateVideo}
           disabled={!ffmpegLoaded || files.length === 0 || isGeneratingVideo || isUploading}
           className={`mt-4 w-full py-3 rounded-lg text-white font-semibold transition-colors duration-200 ${
             !ffmpegLoaded || files.length === 0 || isGeneratingVideo || isUploading ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
           }`}
         >
-          {isGeneratingVideo ? 'Generating Video...' : 'Generate Video from Images'}
+          {imagesUploaded ? 'Generate video' : 'Next'}
         </button>
       </div>
     </div>
