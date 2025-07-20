@@ -224,7 +224,7 @@ export default function Page() {
       try {
         await ffmpeg.createDir('new');
       } catch (err) {
-
+        console.log(err);
       }
 
       // Step 1: Convert all uploaded images to the target format
