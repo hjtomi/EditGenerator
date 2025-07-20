@@ -201,7 +201,7 @@ export default function Page() {
   };*/
 
   // --- Handle Video Generation ---
-  const handleGenerateVideo = async () => {
+  const handleConvertImages = async () => {
     if (!ffmpegLoaded || !ffmpegRef.current) {
       setError('FFmpeg is not loaded yet. Please wait.');
       return;
@@ -221,6 +221,12 @@ export default function Page() {
       const targetExtension = 'jpeg'; // <--- Define your target extension here (e.g., 'png', 'webp')
       const convertedImageNames: string[] = [];
 
+      try {
+        await ffmpeg.createDir('new');
+      } catch (err) {
+
+      }
+
       // Step 1: Convert all uploaded images to the target format
       for (let i = 0; i < files.length; i++) {
           const file = files[i];
@@ -232,52 +238,24 @@ export default function Page() {
 
           // Write the original file data to FFmpeg's virtual file system
           // fetchFile can handle File objects directly in newer @ffmpeg/util versions
-          await ffmpeg.writeFile(originalFileName, await fetchFile(file));
+          await ffmpeg.writeFile(`/new/${originalFileName}`, await fetchFile(file));
           console.log(`Wrote original ${originalFileName} to FFmpeg FS`);
+
           setVideoGenerationProgress(`Converting ${file.name} to ${targetExtension.toUpperCase()}...`);
 
-          await ffmpeg.exec(['-i', originalFileName, '-q:v', '5', convertedFileName]);
+          await ffmpeg.exec(['-i', '/new/'+originalFileName, '-q:v', '10', '/new/'+convertedFileName]);
 
           console.log(`Converted ${originalFileName} to ${convertedFileName}`);
 
           // Optional: Delete the original file from VFS to free up memory
-          //await ffmpeg.deleteFile(originalFileName);
-          //console.log(`Deleted original ${originalFileName} from FFmpeg FS`);
+          await ffmpeg.deleteFile('/new/'+originalFileName);
+          console.log(`Deleted original ${originalFileName} from FFmpeg FS`);
       }
 
       removeAllFiles();
 
       setVideoGenerationProgress(`All images converted to ${targetExtension.toUpperCase()}.`);
       setImagesUploaded(true);
-
-      /*
-      const outputFileName = 'output.mp4';
-      await ffmpeg.exec([
-        '-framerate', '1', // Frames per second for input images
-        '-i', `converted_image_%03d.${targetExtension}`, // Input pattern, assuming consistent extension
-        '-c:v', 'libx264',
-        '-r', '30', // Output video framerate
-        '-pix_fmt', 'yuv420p',
-        '-vf', 'scale=w=1920:h=1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black', // Ensure even dimensions
-        outputFileName,
-      ]);
-
-      // Read the output file from FFmpeg's virtual file system
-      // Explicitly assert 'data' as Uint8Array to resolve TypeScript error
-      const data = await ffmpeg.readFile(outputFileName) as Uint8Array;
-
-      // Create a Blob and download link
-      // Use new Uint8Array(data.buffer) to ensure it's a standard ArrayBufferView
-      const blob = new Blob([new Uint8Array(data as any)], { type: 'video/mp4' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = outputFileName;
-      document.body.appendChild(a);
-      a.click();
-
-      console.log('Video generated and downloaded successfully!');
-      setVideoGenerationProgress('Video generated and downloaded!');*/
     } catch (err) {
       console.error('Error generating video:', err);
       setError(`Failed to generate video: ${err instanceof Error ? err.message : String(err)}`);
@@ -300,19 +278,18 @@ export default function Page() {
       } else {
         const audioFile = files[0];
 
-        await ffmpeg!.writeFile(audioFile.name, await fetchFile(audioFile));
-        console.log(ffmpeg!.listDir("/"));
+        await ffmpeg!.writeFile('/new/'+audioFile.name, await fetchFile(audioFile));
 
         /* Create the video then add the music to the video */
         const videoFileName = 'video.mp4';
         await ffmpeg!.exec([
           '-framerate', '1', // Frames per second for input images
-          '-i', `converted_image_%03d.${targetExtension}`, // Input pattern, assuming consistent extension
+          '-i', `/new/converted_image_%03d.${targetExtension}`, // Input pattern, assuming consistent extension
           '-c:v', 'libx264',
           '-r', '30', // Output video framerate
           '-pix_fmt', 'yuv420p',
           '-vf', 'scale=w=1920:h=1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black', // Ensure even dimensions
-          videoFileName,
+          '/new/'+videoFileName,
         ]);
 
         console.log("created vid");
@@ -321,22 +298,22 @@ export default function Page() {
 
         const outputFileName = 'output.mp4';
         await ffmpeg!.exec([
-          '-i', videoFileName,
-          '-i', files[0].name,
+          '-i', '/new/'+videoFileName,
+          '-i', '/new/'+files[0].name,
           '-map', '0:v',
           '-map', '1:a',
           '-c:v', 'copy',
           '-c:a', 'aac',
           '-b:a', '192k',
-          '-shortest', outputFileName
+          '-shortest', '/new/'+outputFileName
         ]);
 
         console.log("created vid with audio");
 
         // Read the output file from FFmpeg's virtual file system
         // Explicitly assert 'data' as Uint8Array to resolve TypeScript error
-        const data = await ffmpeg!.readFile(outputFileName) as Uint8Array;
-
+        const data = await ffmpeg!.readFile('/new/'+outputFileName) as Uint8Array;
+        
         // Create a Blob and download link
         // Use new Uint8Array(data.buffer) to ensure it's a standard ArrayBufferView
         const blob = new Blob([new Uint8Array(data)], { type: 'video/mp4' });
@@ -439,7 +416,7 @@ export default function Page() {
 
         {/* Selected Files Display */}
         {files.length > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+          <div data-testid="selected-files-display" className="selected-files-display mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
             <p className="font-semibold mb-2">Selected Files ({files.length}):</p>
             <ul className="max-h-40 overflow-y-auto">
               {files.map((file) => (
@@ -515,7 +492,7 @@ export default function Page() {
 
         {/* Generate Video Button */}
         <button
-          onClick={imagesUploaded ? handlePutAudio : handleGenerateVideo}
+          onClick={imagesUploaded ? handlePutAudio : handleConvertImages}
           disabled={!ffmpegLoaded || files.length === 0 || isGeneratingVideo || isUploading}
           className={`mt-4 w-full py-3 rounded-lg text-white font-semibold transition-colors duration-200 ${
             !ffmpegLoaded || files.length === 0 || isGeneratingVideo || isUploading ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
