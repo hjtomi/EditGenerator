@@ -48,10 +48,7 @@ export default function Page() {
         // and ffmpeg-core.worker.js are in your /public/ffmpeg directory.
         await ffmpeg.load({
               coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-              wasmURL: await toBlobURL(
-                `${baseURL}/ffmpeg-core.wasm`,
-                "application/wasm"
-              ),
+              wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
             });
         ffmpegRef.current = ffmpeg;
         setFFmpegLoaded(true);
@@ -243,7 +240,7 @@ export default function Page() {
 
           setVideoGenerationProgress(`Converting ${file.name} to ${targetExtension.toUpperCase()}...`);
 
-          await ffmpeg.exec(['-i', '/new/'+originalFileName, '-q:v', '10', '/new/'+convertedFileName]);
+          await ffmpeg.exec(['-i', '/new/'+originalFileName, '/new/'+convertedFileName]);
 
           console.log(`Converted ${originalFileName} to ${convertedFileName}`);
 
@@ -257,6 +254,7 @@ export default function Page() {
       setVideoGenerationProgress(`All images converted to ${targetExtension.toUpperCase()}.`);
       setImagesUploaded(true);
     } catch (err) {
+      console.log(ffmpegRef.current.listDir("new"));
       console.error('Error generating video:', err);
       setError(`Failed to generate video: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
